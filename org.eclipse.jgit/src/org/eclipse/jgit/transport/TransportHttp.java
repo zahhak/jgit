@@ -44,6 +44,7 @@
 
 package org.eclipse.jgit.transport;
 
+import static org.eclipse.jgit.util.HttpSupport.HDR_AUTHORIZATION;
 import static org.eclipse.jgit.util.HttpSupport.ENCODING_GZIP;
 import static org.eclipse.jgit.util.HttpSupport.HDR_ACCEPT;
 import static org.eclipse.jgit.util.HttpSupport.HDR_ACCEPT_ENCODING;
@@ -103,6 +104,7 @@ import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.SymbolicRef;
 import org.eclipse.jgit.storage.file.RefDirectory;
+import org.eclipse.jgit.util.Base64;
 import org.eclipse.jgit.util.HttpSupport;
 import org.eclipse.jgit.util.IO;
 import org.eclipse.jgit.util.RawParseUtils;
@@ -250,7 +252,7 @@ public class TransportHttp extends HttpTransport implements WalkTransport,
 			throws NotSupportedException {
 		super(local, uri);
 		try {
-			String uriString = uri.toString();
+			String uriString = uri.toPrivateString();
 			if (!uriString.endsWith("/")) //$NON-NLS-1$
 				uriString += "/"; //$NON-NLS-1$
 			baseUrl = new URL(uriString);
@@ -505,7 +507,14 @@ public class TransportHttp extends HttpTransport implements WalkTransport,
 		final Proxy proxy = HttpSupport.proxyFor(proxySelector, u);
 		HttpURLConnection conn = (HttpURLConnection) u.openConnection(proxy);
 
-		if (!http.sslVerify && "https".equals(u.getProtocol())) { //$NON-NLS-1$
+		String userInfo = u.getUserInfo();
+		if (userInfo != null) {
+			byte[] userInfoBytes = userInfo.getBytes();
+			conn.setRequestProperty(HDR_AUTHORIZATION,
+					"Basic " + Base64.encodeBytes(userInfoBytes));
+		}
+
+		if (!http.sslVerify && "https".equals(u.getProtocol())) {
 			disableSslVerify(conn);
 		}
 
